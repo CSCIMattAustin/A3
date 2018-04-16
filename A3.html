@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<script id="vertex-shader1" type="x-shader/x-vertex">
+
+attribute vec4 vPosition;
+attribute vec4 vNormal;
+varying vec3 N, L, E;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform vec4 lightPosition;
+uniform mat3 normalMatrix;
+
+void main()
+{
+    vec3 light;
+    vec3 pos = (modelViewMatrix * vPosition).xyz;
+    if(lightPosition.z == 0.0)  L = normalize(lightPosition.xyz);
+    else  L = normalize(lightPosition).xyz - pos;
+
+    E =  -normalize(pos);
+    N = normalize( normalMatrix*vNormal.xyz);
+    gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+
+}
+</script>
+
+<script id="fragment-shader1" type="x-shader/x-fragment">
+
+precision mediump float;
+
+uniform vec4 ambientProduct;
+uniform vec4 diffuseProduct;
+uniform vec4 specularProduct;
+uniform float shininess;
+varying vec3 N, L, E;
+
+void main()
+{
+    vec4 fColor;
+
+    vec3 H = normalize( L + E );
+    vec4 ambient = ambientProduct;
+
+    float Kd = max( dot(L, N), 0.0 );
+    vec4  diffuse = Kd*diffuseProduct;
+
+    float Ks = pow( max(dot(N, H), 0.0), shininess );
+    vec4  specular = Ks * specularProduct;
+
+    if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+
+    fColor = ambient + diffuse +specular;
+    fColor.a = 1.0;
+
+    gl_FragColor = fColor;
+}
+</script>
+<script id="vertex-shader" type="x-shader/x-vertex">
+
+attribute vec4 vPosition;
+attribute vec4 vNormal;
+
+varying vec4 fColor;
+
+
+uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform vec4 lightPosition;
+uniform float shininess;
+uniform mat3 normalMatrix;
+uniform vec4 translation;
+//uniform vec2 u_rotation;
+uniform mat4 u_matrix;
+uniform vec3 Theta;
+
+
+vec4 multq(vec4 a, vec4 b)
+{
+   return(vec4(a.x*b.x - dot(a.yzw, b.yzw), a.x*b.yzw+b.x*a.yzw+cross(b.yzw, a.yzw)));
+}
+
+// inverse quaternion
+
+vec4 invq(vec4 a)
+{
+   return(vec4(a.x, -a.yzw)/dot(a,a));
+}
+void 
+main()
+{
+vec3 angles = radians(Theta);
+vec4 r;
+  vec4 p;
+  vec4 rx, ry, rz;
+  vec3 c =  cos(angles/2.0);
+  vec3 s =  sin(angles/2.0);
+  rx = vec4(c.x, -s.x, 0.0, 0.0); // x rotation quaternion
+  ry = vec4(c.y, 0.0, s.y, 0.0); // y rotation quaternion
+  rz = vec4(c.z, 0.0, 0.0, s.z); // z rotation quaternion
+  r = multq(rx, multq(ry, rz)); // rotation quaternion
+  p = vec4(0.0, vPosition.xyz);  // input point quaternion
+  p = multq(r, multq(p, invq(r))); // rotated point quaternion
+
+vec3 pos = (modelViewMatrix * vPosition).xyz;
+    vec3 light = lightPosition.xyz;
+    vec3 L;
+
+    // check for directional light
+
+    if(lightPosition.w == 0.0) L = normalize(lightPosition.xyz);
+    else L = normalize( lightPosition.xyz - pos );
+
+
+
+    vec3 E = -normalize( pos );
+    vec3 H = normalize( L + E );
+
+    // Transform vertex normal into eye coordinates
+
+
+    vec3 N = normalize( normalMatrix*vNormal.xyz);
+
+    // Compute terms in the illumination equation
+    vec4 ambient = ambientProduct;
+
+    float Kd = max( dot(L, N), 0.0 );
+    vec4  diffuse = Kd*diffuseProduct;
+
+    float Ks = pow( max(dot(N, H), 0.0), shininess );
+    vec4  specular = Ks * specularProduct;
+
+    if( dot(L, N) < 0.0 ) {
+	specular = vec4(0.0, 0.0, 0.0, 1.0);
+		    }
+    //vPosition = u_matrix*vPosition;
+    gl_Position = projectionMatrix * modelViewMatrix *vec4(p.yzw,1.0)  + translation;
+    gl_Position.z = -gl_Position.z;
+    fColor = ambient + diffuse +specular;
+
+    fColor.a = 1.0;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+
+precision mediump float;
+
+varying vec4 fColor;
+
+void
+main()
+{
+
+    gl_FragColor = fColor;
+
+}
+</script>
+
+<p> </p>
+<button id = "Button0">Increase R</button>
+<button id = "Button1">Decrease R</button>
+
+<p> </p>
+<button id = "Button2">Rotate X</button>
+<button id = "Button3">Rotate Y</button>
+<button id = "Button4">Rotate Z</button>
+<button id = "Button5">Decrease phi</button>
+<p> </p>
+
+
+<p></p>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+
+<script type="text/javascript" src="../Common/MVnew.js"></script>
+<script type="text/javascript" src="A3.js"></script>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+</body>
+</html>
